@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  guild_id                String    @db.Text
+  channel_id              String    @db.Text
+  created_by              String    @db.Text
+  base_amount             Int       @default(1)
+  bonus_amount_multiplier Float     @default(1)
+  max_participants        Int       @default(50)
+  message_id              String?   @db.Text
+  expires_at              DateTime? @db.Timestamptz()
+  closed                  Boolean   @default(false)
+  question                String    @db.Text
+  created_at              DateTime  @default(now()) @db.Timestamptz
+  updated_at              DateTime? @updatedAt @db.Timestamptz
+
+  options EventOption[]
+  votes   EventVote[]
+
+  @@index([id, guild_id, channel_id])
+  @@map("events")
+}
+
+model EventOption {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  event_id   String    @db.Uuid
+  value      String    @db.Text
+  order      Int       @db.Integer
+  correct    Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime? @updatedAt @db.Timestamptz
+
+  event Event       @relation(fields: [event_id], references: [id])
+  votes EventVote[]
+
+  @@index([event_id, id])
+  @@map("event_options")
+}
+
+model EventVote {
+  id                               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  event_id                         String    @db.Uuid
+  option_id                        String    @db.Uuid
+  user_id                          String    @db.Text
+  amount                           Float
+  snapshot_bonus_amount_multiplier Float
+  created_at                       DateTime  @default(now()) @db.Timestamptz
+  updated_at                       DateTime? @updatedAt @db.Timestamptz
+
+  option       EventOption   @relation(fields: [option_id], references: [id])
+  event        Event         @relation(fields: [event_id], references: [id])
+  transactions Transaction[]
+
+  @@index([event_id, option_id, user_id])
+  @@map("event_votes")
+}
+
+enum TransactionType {
+  admin_gift
+  admin_remove
+  event_entry
+  event_end
+  event_win
+  event_loss
+}
+
+model Transaction {
+  id         String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id    String          @db.Text
+  guild_id   String          @db.Text
+  amount     Int             @default(0) @db.Integer
+  type       TransactionType
+  created_at DateTime        @default(now()) @db.Timestamptz
+  updated_at DateTime?       @updatedAt @db.Timestamptz
+
+  event_vote    EventVote? @relation(fields: [event_vote_id], references: [id])
+  event_vote_id String?    @db.Uuid
+
+  @@index([guild_id, user_id, amount, type])
+  @@map("transactions")
+}
+
+model Log {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  guild_id    String?  @db.Text
+  channel_id  String?  @db.Text
+  user_id     String?  @db.Text
+  command     String?  @db.Text
+  command_id  String?  @db.Text
+  error       Json?    @db.JsonB
+  interaction Json?    @db.JsonB
+  message     String   @db.Text
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  @@map("logs")
+}
+
+// model GuildConfig {
+//   id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+//   guild_id        String    @db.Text
+//   permissions     Json      @db.JsonB
+//   owner_id        String    @db.Text
+//   currency_name   String    @default("dollar") @db.Text
+//   currency_symbol String    @default("$DOLLAR") @db.Text
+//   created_at      DateTime  @default(now()) @db.Timestamptz
+//   updated_at      DateTime? @updatedAt @db.Timestamptz
+
+//   @@index([guild_id])
+//   @@map("guild_configs")
+// }
